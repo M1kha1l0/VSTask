@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSTask</title>
+    <link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+    <div class="task-form">
+        <input type="text" id="task-title" class="form-input" placeholder="Task title" />
+        <textarea id="task-description" class="form-input" placeholder="Task description (optional)"></textarea>
+        <button id="add-task" class="add-btn">Add Task</button>
+    </div>
+
+    <div class="tasks-container" id="tasks-container">
+        {{TASKS_CONTENT}}
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Edit Task</h3>
+            <input type="text" id="edit-task-title" class="form-input" placeholder="Task title">
+            <textarea id="edit-task-description" class="form-input" placeholder="Task description (optional)" style="min-height: 80px;"></textarea>
+            <div class="modal-actions">
+                <button id="cancel-edit" class="modal-btn cancel-btn">Cancel</button>
+                <button id="save-edit" class="modal-btn save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        // Elements
+        const taskTitle = document.getElementById('task-title');
+        const taskDescription = document.getElementById('task-description');
+        const addButton = document.getElementById('add-task');
+        const tasksContainer = document.getElementById('tasks-container');
+        
+        // Modal elements
+        const editModal = document.getElementById('edit-modal');
+        const editTaskTitle = document.getElementById('edit-task-title');
+        const editTaskDescription = document.getElementById('edit-task-description');
+        const saveEditButton = document.getElementById('save-edit');
+        const cancelEditButton = document.getElementById('cancel-edit');
+
+        let currentEditTaskId = null;
+
+        // Add task
+        addButton.addEventListener('click', () => {
+            const title = taskTitle.value.trim();
+            const description = taskDescription.value.trim();
+
+            if (title) {
+                vscode.postMessage({
+                    type: 'addTask',
+                    task: {
+                        title: title,
+                        description: description
+                    }
+                });
+
+                // Clear form
+                taskTitle.value = '';
+                taskDescription.value = '';
+                taskTitle.focus();
+            }
+        });
+
+        // Enter key to add task
+        taskTitle.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addButton.click();
+            }
+        });
+
+        // Task actions
+        tasksContainer.addEventListener('click', (e) => {
+            const taskItem = e.target.closest('.task-item');
+            if (!taskItem) return;
+            
+            const taskId = taskItem.dataset.taskId;
+            
+            if (e.target.closest('.delete-btn')) {
+                vscode.postMessage({
+                    type: 'deleteTask',
+                    id: taskId
+                });
+            } else if (e.target.closest('.edit-btn')) {
+                openEditModal(taskId);
+            }
+        });
+
+        // Open edit modal
+        function openEditModal(taskId) {
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            const title = taskElement.querySelector('.task-title').textContent;
+            const description = taskElement.querySelector('.task-description')?.textContent || '';
+            
+            editTaskTitle.value = title;
+            editTaskDescription.value = description;
+            currentEditTaskId = taskId;
+            
+            editModal.style.display = 'flex';
+            editTaskTitle.focus();
+        }
+
+        // Save edited task
+        saveEditButton.addEventListener('click', () => {
+            const title = editTaskTitle.value.trim();
+            const description = editTaskDescription.value.trim();
+
+            if (title && currentEditTaskId) {
+                vscode.postMessage({
+                    type: 'editTask',
+                    id: currentEditTaskId,
+                    task: {
+                        title: title,
+                        description: description
+                    }
+                });
+                closeEditModal();
+            }
+        });
+
+        // Cancel edit
+        cancelEditButton.addEventListener('click', closeEditModal);
+
+        // Close modal on background click
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) {
+                closeEditModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && editModal.style.display === 'flex') {
+                closeEditModal();
+            }
+        });
+
+        function closeEditModal() {
+            editModal.style.display = 'none';
+            currentEditTaskId = null;
+            editTaskTitle.value = '';
+            editTaskDescription.value = '';
+        }
+
+        // Enable/disable add button based on input
+        taskTitle.addEventListener('input', () => {
+            addButton.disabled = !taskTitle.value.trim();
+        });
+
+        // Focus on title input when loaded
+        taskTitle.focus();
+        
+        // Initialize button state
+        addButton.disabled = true;
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
     "name": "vsc-task",
     "displayName": "VSTask",
-    "description": "Minimalist task tracker for VSCode",
+    "description": "Task tracker for VSCode",
     "version": "1.0.0",
     "engines": {
         "vscode": "^1.60.0"

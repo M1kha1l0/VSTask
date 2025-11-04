@@ -1,0 +1,68 @@
+.vsc-task-container {
+    padding: 10px;
+}
+
+.vsc-task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 8px;
+    margin: 4px 0;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.vsc-task-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.vsc-task-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.vsc-task-title {
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    margin-bottom: 2px;
+    word-wrap: break-word;
+}
+
+.vsc-task-description {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.8;
+    word-wrap: break-word;
+}
+
+.vsc-task-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.vsc-task-actions button {
+    background: none;
+    border: none;
+    color: var(--vscode-icon-foreground);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vsc-task-actions button:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.vsc-task-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}

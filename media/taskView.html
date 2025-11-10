@@ -275,7 +275,7 @@
                     `;
                 }
                 
-                // Отправляем сообщение об обновлении приоритета для просроченной задачи
+                // Отправляем сообщение для обновления приоритетов и сортировки
                 vscode.postMessage({
                     type: 'refreshTasks'
                 });
@@ -350,6 +350,10 @@
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 initializeDeadlineTracking();
+                // При возвращении на вкладку обновляем приоритеты и сортировку
+                vscode.postMessage({
+                    type: 'refreshTasks'
+                });
             }
         });
     </script>

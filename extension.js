@@ -7,7 +7,7 @@ class TaskTrackerProvider {
         this.context = context;
         this._onDidChange = new vscode.EventEmitter();
         this.tasks = this.context.globalState.get('vsc-tasks', []);
-        this.sortTasks(); // Сортируем задачи при загрузке
+        this.refreshTasks(); // Используем единый метод для обновления состояния
     }
 
     resolveWebviewView(webviewView) {
@@ -33,8 +33,19 @@ class TaskTrackerProvider {
                 case 'editTask':
                     this.editTask(data.id, data.task);
                     break;
+                case 'refreshTasks':
+                    this.refreshTasks();
+                    break;
             }
         });
+    }
+
+    // Единый метод для обновления состояния задач
+    refreshTasks() {
+        this.updateAllTaskPriorities(); // Сначала обновляем приоритеты
+        this.sortTasks(); // Затем сортируем
+        this.saveTasks(); // Сохраняем
+        this.updateView(); // И только потом обновляем интерфейс
     }
 
     addTask(taskData) {
@@ -44,22 +55,18 @@ class TaskTrackerProvider {
             description: taskData.description,
             deadline: taskData.deadline || null,
             priority: taskData.priority || 1,
-            originalPriority: taskData.priority || 1, // Сохраняем исходный приоритет
+            originalPriority: taskData.priority || 1,
             createdAt: new Date().toISOString()
         };
         
-        this.updateTaskPriority(task); // Обновляем приоритет с учетом дедлайна
         this.tasks.push(task);
-        this.sortTasks(); // Сортируем после добавления
-        this.saveTasks();
-        this.updateView();
+        this.refreshTasks(); // Используем единый метод
     }
 
     deleteTask(id) {
         const taskToDelete = this.tasks.find(task => task.id === id);
         this.tasks = this.tasks.filter(task => task.id !== id);
-        this.saveTasks();
-        this.updateView();
+        this.refreshTasks(); // Используем единый метод
         
         if (taskToDelete) {
             vscode.window.showInformationMessage(`Task "${taskToDelete.title}" deleted`);
@@ -73,25 +80,9 @@ class TaskTrackerProvider {
             this.tasks[taskIndex].description = taskData.description;
             this.tasks[taskIndex].deadline = taskData.deadline || null;
             this.tasks[taskIndex].priority = taskData.priority || 1;
-            this.tasks[taskIndex].originalPriority = taskData.priority || 1; // Сохраняем исходный приоритет
+            this.tasks[taskIndex].originalPriority = taskData.priority || 1;
             
-            this.updateTaskPriority(this.tasks[taskIndex]); // Обновляем приоритет с учетом дедлайна
-            this.sortTasks(); // Сортируем после редактирования
-            this.saveTasks();
-            this.updateView();
-        }
-    }
-
-    // Обновляем приоритет задачи с учетом дедлайна
-    updateTaskPriority(task) {
-        const now = new Date();
-        const deadlineDate = task.deadline ? new Date(task.deadline) : null;
-        const isOverdue = deadlineDate && deadlineDate < now;
-        
-        if (isOverdue) {
-            task.priority = 10; // Максимальный приоритет для просроченных задач
-        } else {
-            task.priority = task.originalPriority; // Возвращаем исходный приоритет
+            this.refreshTasks(); // Используем единый метод
         }
     }
 
@@ -103,9 +94,9 @@ class TaskTrackerProvider {
             const isOverdue = deadlineDate && deadlineDate < now;
             
             if (isOverdue) {
-                task.priority = 10;
+                task.priority = 10; // Максимальный приоритет для просроченных задач
             } else {
-                task.priority = task.originalPriority;
+                task.priority = task.originalPriority; // Возвращаем исходный приоритет
             }
         });
     }
@@ -113,9 +104,6 @@ class TaskTrackerProvider {
     // Быстрая сортировка по убыванию приоритета
     sortTasks() {
         if (this.tasks.length <= 1) return;
-        
-        // Сначала обновляем приоритеты всех задач
-        this.updateAllTaskPriorities();
         
         this.quickSort(this.tasks, 0, this.tasks.length - 1);
     }
@@ -158,7 +146,6 @@ class TaskTrackerProvider {
         // Generate tasks HTML
         const tasksHtml = this.tasks.map(task => {
             const deadlineDate = task.deadline ? new Date(task.deadline) : null;
-            // Более точная проверка просрочки - сравниваем с текущим временем
             const isOverdue = deadlineDate && deadlineDate < now;
             const hasDeadline = deadlineDate && !isOverdue;
             

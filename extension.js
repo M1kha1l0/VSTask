@@ -41,6 +41,7 @@ class TaskTrackerProvider {
             id: Date.now().toString(),
             title: taskData.title,
             description: taskData.description,
+            deadline: taskData.deadline || null,
             createdAt: new Date().toISOString()
         };
         
@@ -65,6 +66,7 @@ class TaskTrackerProvider {
         if (taskIndex !== -1) {
             this.tasks[taskIndex].title = taskData.title;
             this.tasks[taskIndex].description = taskData.description;
+            this.tasks[taskIndex].deadline = taskData.deadline || null;
             this.saveTasks();
             this.updateView();
         }
@@ -81,27 +83,54 @@ class TaskTrackerProvider {
     }
 
     getHtml(webview) {
+        const now = new Date();
+        
         // Generate tasks HTML
-        const tasksHtml = this.tasks.map(task => `
-            <div class="task-item" data-task-id="${task.id}">
-                <div class="task-content">
-                    <div class="task-title">${this.escapeHtml(task.title)}</div>
-                    ${task.description ? `<div class="task-description">${this.escapeHtml(task.description)}</div>` : ''}
-                </div>
-                <div class="task-actions">
-                    <button class="edit-btn" title="Edit task">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.251c.081-.286.235-.547.445-.757l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.25.25 0 0 0 .108-.064l6.286-6.286Z"/>
+        const tasksHtml = this.tasks.map(task => {
+            const deadlineDate = task.deadline ? new Date(task.deadline) : null;
+            // Более точная проверка просрочки - сравниваем с текущим временем
+            const isOverdue = deadlineDate && deadlineDate < now;
+            const taskClass = isOverdue ? 'task-item overdue' : 'task-item';
+            
+            let deadlineHtml = '';
+            if (task.deadline) {
+                const deadlineClass = isOverdue ? 'task-deadline overdue' : 'task-deadline';
+                const formattedDate = deadlineDate.toLocaleDateString() + ' ' + deadlineDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                deadlineHtml = `
+                    <div class="${deadlineClass}" data-deadline="${task.deadline}">
+                        <svg class="deadline-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13A6 6 0 1 1 8 2a6 6 0 0 1 0 12z"/>
+                            <path d="M8 3.5v5l3 1.5"/>
                         </svg>
-                    </button>
-                    <button class="delete-btn" title="Delete task">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M11 3h4v1h-1v11c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4H1V3h4V1c0-.6.4-1 1-1h4c.6 0 1 .4 1 1v2zM6 2h4v1H6V2zm-2 2v10h8V4H4zm3 2h1v6H7V6zm2 0h1v6H9V6z"/>
-                        </svg>
-                    </button>
+                        Due: ${formattedDate}
+                        ${isOverdue ? ' (Overdue)' : ''}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="${taskClass}" data-task-id="${task.id}">
+                    <div class="task-content">
+                        <div class="task-title">${this.escapeHtml(task.title)}</div>
+                        ${task.description ? `<div class="task-description">${this.escapeHtml(task.description)}</div>` : ''}
+                        ${deadlineHtml}
+                    </div>
+                    <div class="task-actions">
+                        <button class="edit-btn" title="Edit task">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.251c.081-.286.235-.547.445-.757l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.25.25 0 0 0 .108-.064l6.286-6.286Z"/>
+                            </svg>
+                        </button>
+                        <button class="delete-btn" title="Delete task">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M11 3h4v1h-1v11c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4H1V3h4V1c0-.6.4-1 1-1h4c.6 0 1 .4 1 1v2zM6 2h4v1H6V2zm-2 2v10h8V4H4zm3 2h1v6H7V6zm2 0h1v6H9V6z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         const tasksContent = this.tasks.length > 0 ? tasksHtml : '<div class="empty-state">No tasks yet. Add your first task above!</div>';
 

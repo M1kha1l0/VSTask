@@ -69,11 +69,16 @@ body {
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-input-border);
     border-radius: 4px;
-    transition: background-color 0.2s;
+    transition: all 0.3s ease;
 }
 
 .task-item:hover {
     background-color: var(--vscode-list-hoverBackground);
+}
+
+.task-item.overdue {
+    border-left: 4px solid var(--vscode-inputValidation-errorBorder);
+    background-color: var(--vscode-inputValidation-errorBackground);
 }
 
 .task-content {
@@ -95,6 +100,25 @@ body {
     opacity: 0.8;
     word-wrap: break-word;
     line-height: 1.3;
+    margin-bottom: 4px;
+}
+
+.task-deadline {
+    font-size: 0.8em;
+    color: var(--vscode-descriptionForeground);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.task-deadline.overdue {
+    color: var(--vscode-errorForeground);
+    font-weight: 600;
+}
+
+.deadline-icon {
+    width: 12px;
+    height: 12px;
 }
 
 .task-actions {
@@ -190,3 +214,37 @@ body {
 .cancel-btn:hover {
     background-color: var(--vscode-toolbar-hoverBackground);
 }
+
+.datetime-input {
+    display: flex;
+    gap: 8px;
+}
+
+.datetime-input .form-input {
+    flex: 1;
+}
+
+.task-item.overdue {
+    border-left: 4px solid var(--vscode-inputValidation-errorBorder);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    animation: pulse-overdue 2s infinite;
+}
+
+@keyframes pulse-overdue {
+    0% {
+        background-color: var(--vscode-inputValidation-errorBackground);
+    }
+    50% {
+        background-color: color-mix(in srgb, var(--vscode-inputValidation-errorBackground) 80%, transparent);
+    }
+    100% {
+        background-color: var(--vscode-inputValidation-errorBackground);
+    }
+}
+
+.task-deadline.overdue {
+    color: var(--vscode-errorForeground);
+    font-weight: 600;
+}
+
+/* Убедитесь, что эти стили уже есть в вашем CSS */

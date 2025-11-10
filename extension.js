@@ -7,6 +7,7 @@ class TaskTrackerProvider {
         this.context = context;
         this._onDidChange = new vscode.EventEmitter();
         this.tasks = this.context.globalState.get('vsc-tasks', []);
+        this.sortTasks(); // Сортируем задачи при загрузке
     }
 
     resolveWebviewView(webviewView) {
@@ -42,10 +43,14 @@ class TaskTrackerProvider {
             title: taskData.title,
             description: taskData.description,
             deadline: taskData.deadline || null,
+            priority: taskData.priority || 1,
+            originalPriority: taskData.priority || 1, // Сохраняем исходный приоритет
             createdAt: new Date().toISOString()
         };
         
+        this.updateTaskPriority(task); // Обновляем приоритет с учетом дедлайна
         this.tasks.push(task);
+        this.sortTasks(); // Сортируем после добавления
         this.saveTasks();
         this.updateView();
     }
@@ -67,9 +72,74 @@ class TaskTrackerProvider {
             this.tasks[taskIndex].title = taskData.title;
             this.tasks[taskIndex].description = taskData.description;
             this.tasks[taskIndex].deadline = taskData.deadline || null;
+            this.tasks[taskIndex].priority = taskData.priority || 1;
+            this.tasks[taskIndex].originalPriority = taskData.priority || 1; // Сохраняем исходный приоритет
+            
+            this.updateTaskPriority(this.tasks[taskIndex]); // Обновляем приоритет с учетом дедлайна
+            this.sortTasks(); // Сортируем после редактирования
             this.saveTasks();
             this.updateView();
         }
+    }
+
+    // Обновляем приоритет задачи с учетом дедлайна
+    updateTaskPriority(task) {
+        const now = new Date();
+        const deadlineDate = task.deadline ? new Date(task.deadline) : null;
+        const isOverdue = deadlineDate && deadlineDate < now;
+        
+        if (isOverdue) {
+            task.priority = 10; // Максимальный приоритет для просроченных задач
+        } else {
+            task.priority = task.originalPriority; // Возвращаем исходный приоритет
+        }
+    }
+
+    // Обновляем приоритеты всех задач с учетом текущего времени
+    updateAllTaskPriorities() {
+        const now = new Date();
+        this.tasks.forEach(task => {
+            const deadlineDate = task.deadline ? new Date(task.deadline) : null;
+            const isOverdue = deadlineDate && deadlineDate < now;
+            
+            if (isOverdue) {
+                task.priority = 10;
+            } else {
+                task.priority = task.originalPriority;
+            }
+        });
+    }
+
+    // Быстрая сортировка по убыванию приоритета
+    sortTasks() {
+        if (this.tasks.length <= 1) return;
+        
+        // Сначала обновляем приоритеты всех задач
+        this.updateAllTaskPriorities();
+        
+        this.quickSort(this.tasks, 0, this.tasks.length - 1);
+    }
+
+    quickSort(arr, low, high) {
+        if (low < high) {
+            const pi = this.partition(arr, low, high);
+            this.quickSort(arr, low, pi - 1);
+            this.quickSort(arr, pi + 1, high);
+        }
+    }
+
+    partition(arr, low, high) {
+        const pivot = arr[high].priority;
+        let i = low - 1;
+        
+        for (let j = low; j < high; j++) {
+            if (arr[j].priority >= pivot) { // Сортировка по убыванию
+                i++;
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+        [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+        return i + 1;
     }
 
     saveTasks() {
@@ -90,11 +160,20 @@ class TaskTrackerProvider {
             const deadlineDate = task.deadline ? new Date(task.deadline) : null;
             // Более точная проверка просрочки - сравниваем с текущим временем
             const isOverdue = deadlineDate && deadlineDate < now;
-            const taskClass = isOverdue ? 'task-item overdue' : 'task-item';
+            const hasDeadline = deadlineDate && !isOverdue;
+            
+            // Определяем классы для задачи
+            let taskClass = 'task-item';
+            if (isOverdue) {
+                taskClass += ' overdue';
+            } else if (hasDeadline) {
+                taskClass += ' has-deadline';
+            }
             
             let deadlineHtml = '';
             if (task.deadline) {
-                const deadlineClass = isOverdue ? 'task-deadline overdue' : 'task-deadline';
+                const deadlineClass = isOverdue ? 'task-deadline overdue' : 
+                                    hasDeadline ? 'task-deadline has-deadline' : 'task-deadline';
                 const formattedDate = deadlineDate.toLocaleDateString() + ' ' + deadlineDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 
                 deadlineHtml = `
@@ -109,11 +188,17 @@ class TaskTrackerProvider {
                 `;
             }
 
+            // Отображаем текущий приоритет (может быть 10 для просроченных)
+            const displayPriority = task.priority;
+
             return `
-                <div class="${taskClass}" data-task-id="${task.id}">
+                <div class="${taskClass}" data-task-id="${task.id}" data-task-priority="${displayPriority}">
                     <div class="task-content">
                         <div class="task-title">${this.escapeHtml(task.title)}</div>
                         ${task.description ? `<div class="task-description">${this.escapeHtml(task.description)}</div>` : ''}
+                        <div class="task-priority-display">
+                            Priority: ${displayPriority}
+                        </div>
                         ${deadlineHtml}
                     </div>
                     <div class="task-actions">

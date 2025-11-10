@@ -247,4 +247,82 @@ body {
     font-weight: 600;
 }
 
-/* Убедитесь, что эти стили уже есть в вашем CSS */
+/* Styles for tasks with deadlines (not overdue) */
+.task-item.has-deadline {
+    border-left: 4px solid var(--vscode-inputValidation-warningBorder);
+    background-color: var(--vscode-inputValidation-warningBackground);
+}
+
+.task-deadline.has-deadline {
+    color: var(--vscode-inputValidation-warningBorder);
+    font-weight: 600;
+}
+
+.task-deadline.has-deadline .deadline-icon {
+    color: var(--vscode-inputValidation-warningBorder);
+}
+
+/* Ensure overdue tasks still have red styling */
+.task-item.overdue {
+    border-left: 4px solid var(--vscode-inputValidation-errorBorder);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    animation: pulse-overdue 2s infinite;
+}
+
+.task-deadline.overdue {
+    color: var(--vscode-errorForeground);
+    font-weight: 600;
+}
+
+@keyframes pulse-overdue {
+    0% {
+        background-color: var(--vscode-inputValidation-errorBackground);
+    }
+    50% {
+        background-color: color-mix(in srgb, var(--vscode-inputValidation-errorBackground) 80%, transparent);
+    }
+    100% {
+        background-color: var(--vscode-inputValidation-errorBackground);
+    }
+}
+
+.priority-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.priority-label {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+}
+
+.priority-input-field {
+    width: 80px !important;
+}
+
+.task-priority-display {
+    font-size: 0.8em;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.priority-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.priority-label {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+}
+
+.priority-input-field {
+    width: 80px !important;
+}

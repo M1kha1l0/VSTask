@@ -42,10 +42,10 @@ class TaskTrackerProvider {
 
     // Единый метод для обновления состояния задач
     refreshTasks() {
-        this.updateAllTaskPriorities(); // Сначала обновляем приоритеты
-        this.sortTasks(); // Затем сортируем
-        this.saveTasks(); // Сохраняем
-        this.updateView(); // И только потом обновляем интерфейс
+        this.updateAllTaskPriorities();
+        this.sortTasks();
+        this.saveTasks();
+        this.updateView();
     }
 
     addTask(taskData) {
@@ -60,13 +60,13 @@ class TaskTrackerProvider {
         };
         
         this.tasks.push(task);
-        this.refreshTasks(); // Используем единый метод
+        this.refreshTasks();
     }
 
     deleteTask(id) {
         const taskToDelete = this.tasks.find(task => task.id === id);
         this.tasks = this.tasks.filter(task => task.id !== id);
-        this.refreshTasks(); // Используем единый метод
+        this.refreshTasks();
         
         if (taskToDelete) {
             vscode.window.showInformationMessage(`Task "${taskToDelete.title}" deleted`);
@@ -82,7 +82,7 @@ class TaskTrackerProvider {
             this.tasks[taskIndex].priority = taskData.priority || 1;
             this.tasks[taskIndex].originalPriority = taskData.priority || 1;
             
-            this.refreshTasks(); // Используем единый метод
+            this.refreshTasks();
         }
     }
 

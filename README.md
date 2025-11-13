@@ -27,7 +27,8 @@ VSTask - это расширение для Visual Studio Code, которое �
 
 ### Как запустить
 - Скачать пакет расширения VScode.
-
+- Выполнить `code --install-extension vsc-task-X.X.X.vsix`
+  
 ### Открытие панели задач
 1. Нажмите на иконку VSTask в Activity Bar (левый сайдбар)
 2. Или выполните команду: `Ctrl+Shift+P` → "VSTask: Show View"

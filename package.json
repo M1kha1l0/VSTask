@@ -1,0 +1,33 @@
+{
+    "name": "vsc-task",
+    "displayName": "VSTask",
+    "description": "Task tracker for VSCode",
+    "publisher": "vsc-task",
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./extension.js",
+    "contributes": {
+        "views": {
+            "explorer": [
+                {
+                    "id": "vsc-task",
+                    "name": "VSTask",
+                    "type": "webview"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "vsc-task.showView",
+                "title": "Show VSTask",
+                "category": "VSTask"
+            }
+        ]
+    }
+}

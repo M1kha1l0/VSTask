@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSTask</title>
+    <link rel="stylesheet" href="{{CSS_URI}}">
+</head>
+<body>
+    <div class="task-form">
+        <input type="text" id="task-title" class="form-input" placeholder="Task title" />
+        <textarea id="task-description" class="form-input" placeholder="Task description (optional)"></textarea>
+        
+        <div class="priority-input">
+            <label for="task-priority" class="priority-label">Priority (1-10):</label>
+            <input type="number" id="task-priority" class="form-input priority-input-field" 
+                   min="1" max="10" value="1" placeholder="Priority">
+        </div>
+        
+        <div class="datetime-input">
+            <input type="date" id="task-deadline-date" class="form-input" placeholder="Deadline date">
+            <input type="time" id="task-deadline-time" class="form-input" placeholder="Deadline time">
+        </div>
+        
+        <button id="add-task" class="add-btn">Add Task</button>
+    </div>
+
+    <div class="tasks-container" id="tasks-container">
+        {{TASKS_CONTENT}}
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Edit Task</h3>
+            <input type="text" id="edit-task-title" class="form-input" placeholder="Task title">
+            <textarea id="edit-task-description" class="form-input" placeholder="Task description (optional)" style="min-height: 80px;"></textarea>
+            
+            <div class="priority-input">
+                <label for="edit-task-priority" class="priority-label">Priority (1-10):</label>
+                <input type="number" id="edit-task-priority" class="form-input priority-input-field" 
+                       min="1" max="10" value="1" placeholder="Priority">
+            </div>
+            
+            <div class="datetime-input">
+                <input type="date" id="edit-task-deadline-date" class="form-input" placeholder="Deadline date">
+                <input type="time" id="edit-task-deadline-time" class="form-input" placeholder="Deadline time">
+            </div>
+            
+            <div class="modal-actions">
+                <button id="cancel-edit" class="modal-btn cancel-btn">Cancel</button>
+                <button id="save-edit" class="modal-btn save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        // Elements
+        const taskTitle = document.getElementById('task-title');
+        const taskDescription = document.getElementById('task-description');
+        const taskPriority = document.getElementById('task-priority');
+        const taskDeadlineDate = document.getElementById('task-deadline-date');
+        const taskDeadlineTime = document.getElementById('task-deadline-time');
+        const addButton = document.getElementById('add-task');
+        const tasksContainer = document.getElementById('tasks-container');
+        
+        // Modal elements
+        const editModal = document.getElementById('edit-modal');
+        const editTaskTitle = document.getElementById('edit-task-title');
+        const editTaskDescription = document.getElementById('edit-task-description');
+        const editTaskPriority = document.getElementById('edit-task-priority');
+        const editTaskDeadlineDate = document.getElementById('edit-task-deadline-date');
+        const editTaskDeadlineTime = document.getElementById('edit-task-deadline-time');
+        const saveEditButton = document.getElementById('save-edit');
+        const cancelEditButton = document.getElementById('cancel-edit');
+
+        let currentEditTaskId = null;
+        let deadlineTimeouts = new Map();
+
+        // Add task
+        addButton.addEventListener('click', () => {
+            const title = taskTitle.value.trim();
+            const description = taskDescription.value.trim();
+            const priority = parseInt(taskPriority.value) || 1;
+            const deadline = getDeadlineFromInputs(taskDeadlineDate, taskDeadlineTime);
+
+            if (title) {
+                // Validate priority
+                const validatedPriority = Math.max(1, Math.min(10, priority));
+                
+                vscode.postMessage({
+                    type: 'addTask',
+                    task: {
+                        title: title,
+                        description: description,
+                        deadline: deadline,
+                        priority: validatedPriority
+                    }
+                });
+
+                // Clear form
+                taskTitle.value = '';
+                taskDescription.value = '';
+                taskPriority.value = '1';
+                taskDeadlineDate.value = '';
+                taskDeadlineTime.value = '';
+                taskTitle.focus();
+            }
+        });
+
+        // Enter key to add task
+        taskTitle.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addButton.click();
+            }
+        });
+
+        // Task actions
+        tasksContainer.addEventListener('click', (e) => {
+            const taskItem = e.target.closest('.task-item');
+            if (!taskItem) return;
+            
+            const taskId = taskItem.dataset.taskId;
+            
+            if (e.target.closest('.delete-btn')) {
+                // Clear timeout for this task if it exists
+                if (deadlineTimeouts.has(taskId)) {
+                    clearTimeout(deadlineTimeouts.get(taskId));
+                    deadlineTimeouts.delete(taskId);
+                }
+                
+                vscode.postMessage({
+                    type: 'deleteTask',
+                    id: taskId
+                });
+            } else if (e.target.closest('.edit-btn')) {
+                openEditModal(taskId);
+            }
+        });
+
+        // Open edit modal
+        function openEditModal(taskId) {
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            const title = taskElement.querySelector('.task-title').textContent;
+            const description = taskElement.querySelector('.task-description')?.textContent || '';
+            const priority = taskElement.dataset.taskPriority || '1';
+            const deadlineElement = taskElement.querySelector('.task-deadline');
+            let deadline = null;
+            
+            if (deadlineElement && deadlineElement.dataset.deadline) {
+                deadline = deadlineElement.dataset.deadline;
+                const deadlineDate = new Date(deadline);
+                editTaskDeadlineDate.value = deadlineDate.toISOString().split('T')[0];
+                editTaskDeadlineTime.value = deadlineDate.toTimeString().slice(0, 5);
+            } else {
+                editTaskDeadlineDate.value = '';
+                editTaskDeadlineTime.value = '';
+            }
+            
+            editTaskTitle.value = title;
+            editTaskDescription.value = description;
+            editTaskPriority.value = priority;
+            currentEditTaskId = taskId;
+            
+            editModal.style.display = 'flex';
+            editTaskTitle.focus();
+        }
+
+        // Save edited task
+        saveEditButton.addEventListener('click', () => {
+            const title = editTaskTitle.value.trim();
+            const description = editTaskDescription.value.trim();
+            const priority = parseInt(editTaskPriority.value) || 1;
+            const deadline = getDeadlineFromInputs(editTaskDeadlineDate, editTaskDeadlineTime);
+
+            if (title && currentEditTaskId) {
+                // Validate priority
+                const validatedPriority = Math.max(1, Math.min(10, priority));
+                
+                // Clear existing timeout for this task
+                if (deadlineTimeouts.has(currentEditTaskId)) {
+                    clearTimeout(deadlineTimeouts.get(currentEditTaskId));
+                    deadlineTimeouts.delete(currentEditTaskId);
+                }
+                
+                vscode.postMessage({
+                    type: 'editTask',
+                    id: currentEditTaskId,
+                    task: {
+                        title: title,
+                        description: description,
+                        deadline: deadline,
+                        priority: validatedPriority
+                    }
+                });
+                closeEditModal();
+            }
+        });
+
+        // Cancel edit
+        cancelEditButton.addEventListener('click', closeEditModal);
+
+        // Close modal on background click
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) {
+                closeEditModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && editModal.style.display === 'flex') {
+                closeEditModal();
+            }
+        });
+
+        function closeEditModal() {
+            editModal.style.display = 'none';
+            currentEditTaskId = null;
+            editTaskTitle.value = '';
+            editTaskDescription.value = '';
+            editTaskPriority.value = '1';
+            editTaskDeadlineDate.value = '';
+            editTaskDeadlineTime.value = '';
+        }
+
+        // Helper function to get deadline from date and time inputs
+        function getDeadlineFromInputs(dateInput, timeInput) {
+            const date = dateInput.value;
+            const time = timeInput.value;
+            
+            if (!date) return null;
+            
+            if (!time) {
+                // If no time specified, set to end of day
+                return new Date(date + 'T23:59:59').toISOString();
+            }
+            
+            return new Date(date + 'T' + time).toISOString();
+        }
+
+        // Update overdue status for a specific task
+        function updateTaskOverdueStatus(taskId, deadline) {
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (!taskElement) return;
+            
+            const deadlineElement = taskElement.querySelector('.task-deadline');
+            const now = new Date();
+            const deadlineDate = new Date(deadline);
+            
+            // Точная проверка: текущее время больше или равно дедлайну
+            const isOverdue = deadlineDate <= now;
+            const hasDeadline = deadlineDate > now;
+            
+            // Удаляем все классы статусов
+            taskElement.classList.remove('overdue', 'has-deadline');
+            if (deadlineElement) {
+                deadlineElement.classList.remove('overdue', 'has-deadline');
+            }
+            
+            if (isOverdue) {
+                taskElement.classList.add('overdue');
+                if (deadlineElement) {
+                    deadlineElement.classList.add('overdue');
+                    // Обновляем текст, чтобы показать что задача просрочена
+                    const formattedDate = deadlineDate.toLocaleDateString() + ' ' + deadlineDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    deadlineElement.innerHTML = `
+                        <svg class="deadline-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13A6 6 0 1 1 8 2a6 6 0 0 1 0 12z"/>
+                            <path d="M8 3.5v5l3 1.5"/>
+                        </svg>
+                        Due: ${formattedDate} (Overdue)
+                    `;
+                }
+                
+                // Отправляем сообщение для обновления приоритетов и сортировки
+                vscode.postMessage({
+                    type: 'refreshTasks'
+                });
+            } else if (hasDeadline) {
+                taskElement.classList.add('has-deadline');
+                if (deadlineElement) {
+                    deadlineElement.classList.add('has-deadline');
+                    // Восстанавливаем оригинальный текст для задач с дедлайном
+                    const formattedDate = deadlineDate.toLocaleDateString() + ' ' + deadlineDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    deadlineElement.innerHTML = `
+                        <svg class="deadline-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 13A6 6 0 1 1 8 2a6 6 0 0 1 0 12z"/>
+                            <path d="M8 3.5v5l3 1.5"/>
+                        </svg>
+                        Due: ${formattedDate}
+                    `;
+                }
+                
+                // Schedule next update exactly when the deadline passes
+                const timeUntilDeadline = deadlineDate.getTime() - now.getTime();
+                if (timeUntilDeadline > 0) {
+                    const timeoutId = setTimeout(() => {
+                        updateTaskOverdueStatus(taskId, deadline);
+                    }, timeUntilDeadline);
+                    
+                    deadlineTimeouts.set(taskId, timeoutId);
+                }
+            }
+        }
+
+        // Initialize deadline tracking for all tasks
+        function initializeDeadlineTracking() {
+            // Clear all existing timeouts
+            deadlineTimeouts.forEach((timeoutId, taskId) => {
+                clearTimeout(timeoutId);
+            });
+            deadlineTimeouts.clear();
+            
+            // Set up tracking for each task with a deadline
+            const taskItems = document.querySelectorAll('.task-item');
+            taskItems.forEach(taskItem => {
+                const taskId = taskItem.dataset.taskId;
+                const deadlineElement = taskItem.querySelector('.task-deadline');
+                
+                if (deadlineElement && deadlineElement.dataset.deadline) {
+                    const deadline = deadlineElement.dataset.deadline;
+                    updateTaskOverdueStatus(taskId, deadline);
+                }
+            });
+        }
+
+        // Enable/disable add button based on input
+        taskTitle.addEventListener('input', () => {
+            addButton.disabled = !taskTitle.value.trim();
+        });
+
+        // Focus on title input when loaded
+        taskTitle.focus();
+        
+        // Initialize button state
+        addButton.disabled = true;
+
+        // Set minimum date to today for deadline inputs
+        const today = new Date().toISOString().split('T')[0];
+        taskDeadlineDate.min = today;
+        editTaskDeadlineDate.min = today;
+
+        // Initialize deadline tracking when page loads
+        initializeDeadlineTracking();
+        
+        // Also reinitialize when the page visibility changes (when user comes back to tab)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                initializeDeadlineTracking();
+                // При возвращении на вкладку обновляем приоритеты и сортировку
+                vscode.postMessage({
+                    type: 'refreshTasks'
+                });
+            }
+        });
+    </script>
+</body>
+</html>
